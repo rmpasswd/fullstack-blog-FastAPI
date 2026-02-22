@@ -1,3 +1,4 @@
+```
 posts: list[dict] = [
     {
         "id": 1,
@@ -28,3 +29,5 @@ posts: list[dict] = [
         "date_posted": "2025-04-21T00:00:00",
     },
 ]
+
+```
