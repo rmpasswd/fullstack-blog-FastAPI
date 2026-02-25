@@ -17,10 +17,14 @@ router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
+#  prefix="/api/posts"
 
 @router.get("", include_in_schema=True, response_model=list[PostResponse])
 async def posts_all(db: Annotated[AsyncSession, Depends(get_db)]):
-    posts = await db.execute(select(models.Post).options(selectinload(models.Post.author)))
+    posts = await db.execute(
+                    select(models.Post)
+                    .options(selectinload(models.Post.author))
+                    .order_by(models.Post.date_posted.desc()))
     return posts.scalars().all()
 
 @router.get("/{post_id}", response_model=PostResponse)
@@ -120,7 +124,9 @@ async def get_user_posts(userid: int, db: Annotated[AsyncSession, Depends(get_db
     if  r.scalars().first(): # Does the user exist?
 
         # User-specific posts
-        r= await db.execute( select(models.Post).options(selectinload(models.Post.author)).where(models.Post.user_id == userid))
+        r= await db.execute( select(models.Post).options(selectinload(models.Post.author))
+                            .where(models.Post.user_id == userid)
+                            .order_by(models.Post.date_posted.desc()))
         return r.scalars().all() #  A user can have an empty list of posts, no problem
 
     raise HTTPException( status_code=status.HTTP_404_NOT_FOUND, detail=f"Could not find a user with userid {userid}." )

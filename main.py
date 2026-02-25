@@ -82,7 +82,9 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/posts", include_in_schema=True, name="posts")
 async def  home(request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
 
-    r = await db.execute(select(models.Post).options(selectinload(models.Post.author)))
+    r = await db.execute(select(models.Post)
+                         .order_by(models.Post.date_posted.desc())
+                         .options(selectinload(models.Post.author)))
     posts = r.scalars()
     # print([i for i in posts]) #  Iterators in Python are single-pass i.e. post becomes empty after this. So this line should stay commented
     return templates.TemplateResponse(

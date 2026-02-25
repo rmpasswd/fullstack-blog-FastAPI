@@ -15,6 +15,7 @@ import models
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
+# prefix="/api/users"
 
 @router.post("/new", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(userr: UserCreate, db: Annotated[AsyncSession, Depends(get_db)]):

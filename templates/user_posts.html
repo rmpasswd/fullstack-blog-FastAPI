@@ -16,7 +16,7 @@
             <a class="me-2" 
                 href="{{ url_for('user_posts_page', user_id=post.author.id if post.author else post.user_id) }}">
                 {{ post.author.username.upper() }}</a>
-            <small class="text-body-secondary">{{ post.date_posted.strftime("%m-%d-%Y %H:%M:%S") }}</small>
+            <small class="text-body-secondary">{{ post.date_posted.strftime("%B %d, %Y %H:%M:%S") }}</small>
           </div>
           <h2>
             <a class="article-title" href="{{ url_for('get_post_page', post_id=post.id) }}">{{ post.title }}</a>
