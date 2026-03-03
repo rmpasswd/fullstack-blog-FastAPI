@@ -9,7 +9,7 @@ class UserBase(BaseModel):
     email: EmailStr = Field(max_length=120)
 
 class UserCreate(UserBase):
-    pass
+    password: str = Field(min_length=3) # todo: bro!
 
 class UserUpdate(UserBase):
     username: str | None = Field(default=None, min_length=1, max_length=45)
@@ -17,13 +17,21 @@ class UserUpdate(UserBase):
     image_file: str | None =  Field(default=None,min_length=1, max_length=222)
 
 
-class UserResponse(UserBase):
+class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True) # 'True' allows the use of . notation for dictionary objects
+
     id: int
+    username: str
     image_file: str | None
     image_path: str
 
+class UserResponsePrivate(UserResponse):
 
+    email: EmailStr
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 # existing pydantic schema
 class PostBase(BaseModel):

@@ -125,7 +125,19 @@ async def user_posts_page(user_id: int, request: Request, db:  Annotated[AsyncSe
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail= "User not found")
 
 
-## API Endpoints are in routers directory
+@app.get("/login", include_in_schema=False)
+async def login_page(req: Request):
+    return templates.TemplateResponse(
+        request=req, name= "login.html", context={"title": "Login"}
+    )
+
+@app.get("/register", include_in_schema=False)
+async def register_page(req: Request):
+    return templates.TemplateResponse(
+        request=req, name="register.html", context={"title": "Register"}
+    )
+
+## API Endpoints are in routers directory moved to dir. /routers 
 
 
 @app.exception_handler(StarletteHTTPException)
