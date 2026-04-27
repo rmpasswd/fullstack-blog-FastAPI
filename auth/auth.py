@@ -36,3 +36,38 @@ def verify_access_token(token: str) -> str | None:
 
 
 
+# Dependency to get the current user, for internal use by routes, e.g. PostCreate
+from typing import Annotated
+from fastapi import Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+import models
+from database import get_db
+
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)]
+) -> models.User:
+    
+    user_id = verify_access_token(token=token)
+    if user_id is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid/Expired token", headers={"WWW-Authenticate": "Bearer"})    
+
+    try:
+        user_id_int = int(user_id)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid/Expired token", headers={"WWW-Authenticate": "Bearer"})    
+        
+    r  = await db.execute(select(models.User).where(models.User.id==user_id_int))
+
+    userr = r.scalars().first()
+
+    if userr is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid/Expired token", headers={"WWW-Authenticate": "Bearer"})    
+    
+    return userr
+
+# The following type-alias will use the above function...
+
+CurrentUser = Annotated[models.User, Depends(get_current_user)]
+

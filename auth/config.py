@@ -8,8 +8,17 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    secret_key: SecretStr   #  going to  get values from .env file, the existing value system environment variable  gets higher priority than .env file.
+    database_url : str
+
+    secret_key: SecretStr
+    #  going to  get values from .env file.  Notice in both  files,  the names  are same but DIFFER in case.
+    #  the existing value system environment variable  gets higher priority than .env file.
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+
+    # while writing the image handles...
+    max_upload_size_bytes: int = 5 * 1024 *1024
+
+    posts_per_page: int = 3
 
 settings = Settings()

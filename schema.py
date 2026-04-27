@@ -14,7 +14,9 @@ class UserCreate(UserBase):
 class UserUpdate(UserBase):
     username: str | None = Field(default=None, min_length=1, max_length=45)
     email: EmailStr | None =  Field(default=None,max_length=120)
-    image_file: str | None =  Field(default=None,min_length=1, max_length=222)
+    
+    # image_file: str | None =  Field(default=None,min_length=1, max_length=222)
+    # 
 
 
 class UserResponse(BaseModel):
@@ -22,6 +24,7 @@ class UserResponse(BaseModel):
 
     id: int
     username: str
+    email: str # later added
     image_file: str | None
     image_path: str
 
@@ -41,8 +44,10 @@ class PostBase(BaseModel):
 
 
 class PostCreate(PostBase):   
-    user_id: int 
+    # user_id: int 
     # temporary, in future we will get current userid from browser session.
+    # Henceforth: The client will not send this while making a new post, the server will calculate current user and verify
+    pass
 
 class PostUpdate(PostBase): # for http patch request
     title: str | None = Field(default=None, min_length=1, max_length=100)
@@ -59,4 +64,10 @@ class PostResponse(PostBase):
 
     
 
+class PostResponsePaginated(BaseModel):
+    posts: list[PostResponse]
+    total: int
+    skip: int       # the current offset
+    limit: int      # how many post client have requested
+    has_more: bool  # easier than skip<total !
 

@@ -1,5 +1,5 @@
-from contextlib import asynccontextmanager
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, status, Depends
 
 from fastapi.staticfiles import StaticFiles
@@ -10,29 +10,32 @@ from fastapi.exception_handlers import http_exception_handler, request_validatio
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from typing import Annotated
 import models
-from database import Base, engine, get_db
+from database import engine, get_db
 from routers import users,posts
-
+from auth.config import settings
 
 
 # Base.metadata.create_all(bind=engine)  # create_all is a sync function.
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # Startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # async with engine.begin() as conn:
+    #     await conn.run_sync(Base.metadata.create_all,) 
+    # create_all  is problematic as it will not re-create the table (and also interfere with alembic migration) if in future we change the table's design(eg. another column)
     yield
     # Shutdown
     await engine.dispose()
 
+    
 
 app= FastAPI(lifespan=lifespan) # The lifespan feature is just FastAPI saying: “If you need to initialize something when the app starts, do it here.”
 app.mount("/static",  StaticFiles(directory="static"), name="static")
+app.mount("/media",  StaticFiles(directory="media"), name="media")
 
 
 app.include_router(users.router, prefix="/api/users", tags=["users"]) 
@@ -41,56 +44,27 @@ app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
 templates = Jinja2Templates(directory="templates")
 
 
-
-# region old code post list
-# posts: list[dict] = [
-#     {
-#         "id": 1,
-#         "user_id": 1,
-#         "author": {
-#             "id": 1,
-#             "username": "corey_schafer",
-#             "email": "corey@example.com",
-#             "image_file": "default.jpg",
-#             "image_path": "/static/profile_pics/default.jpg"
-#         },
-#         "title": "FastAPI is Awesome",
-#         "content": "This framework is really easy to use and super fast.",
-#         "date_posted": "2025-04-20T00:00:00",
-#     },
-#     {
-#         "id": 2,
-#         "user_id": 2,
-#         "author": {
-#             "id": 2,
-#             "username": "jane_doe",
-#             "email": "jane@example.com",
-#             "image_file": "default.jpg",
-#             "image_path": "/static/profile_pics/default.jpg"
-#         },
-#         "title": "Python is Great for Web Development",
-#         "content": "Python is a great language for web development, and FastAPI makes it even better.",
-#         "date_posted": "2025-04-21T00:00:00",
-#     },
-# ]
-
-# endregion
-
-
-
 @app.get("/", include_in_schema=False, name="home")
 @app.get("/posts", include_in_schema=True, name="posts")
 async def  home(request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
 
     r = await db.execute(select(models.Post)
                          .order_by(models.Post.date_posted.desc())
-                         .options(selectinload(models.Post.author)))
-    posts = r.scalars()
-    # print([i for i in posts]) #  Iterators in Python are single-pass i.e. post becomes empty after this. So this line should stay commented
+                         .options(selectinload(models.Post.author))
+                         .limit(settings.posts_per_page))
+    posts = r.scalars().all()
+
+    # print([i for i in posts]) #  Iterators in Python are single-pass i.e. post becomes empty after this. So this line doesn't work
+    
+    # count total posts
+    r = await db.execute(select(func.count()).select_from(models.Post))
+    total = r.scalar() or 0
+    has_more =len(posts) < total
+
     return templates.TemplateResponse(
         request=request,
         name="home.html",
-        context={"posts": posts, "title": "All Posts"}
+        context={"posts": posts, "has_more": has_more, "limit":settings.posts_per_page, "title": "All Posts"}
     )
 
 
@@ -115,14 +89,20 @@ async def user_posts_page(user_id: int, request: Request, db:  Annotated[AsyncSe
     
     user = await db.execute( select(models.User).where(models.User.id == user_id) )
     user = user.scalars().first()
-
-    if user:
-        r = await db.execute( select(models.Post).options(selectinload(models.Post.author)).where(models.Post.user_id == user_id) )
-        return templates.TemplateResponse(
-            request, "user_posts.html", context= { "posts": r.scalars().all(), "user": user, "title": f"{user.username.upper()}'s Posts" }          
-        )
-    else:
+    if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail= "User not found")
+
+    posts = await db.execute( select(models.Post).options(selectinload(models.Post.author)).where(models.Post.user_id == user_id).limit(settings.posts_per_page) )
+    posts = posts.scalars().all()
+    
+    # count total posts
+    r = await db.execute(select(func.count()).select_from(models.Post).where(models.Post.user_id==user_id))
+    total = r.scalar() or 0
+    has_more =len(posts) < total
+
+    return templates.TemplateResponse(
+    request, "user_posts.html", context= { "posts": posts, "has_more": has_more, "user": user, "limit": settings.posts_per_page, "title": f"{user.username.upper()}'s Posts" }          
+    )
 
 
 @app.get("/login", include_in_schema=False)
@@ -136,6 +116,14 @@ async def register_page(req: Request):
     return templates.TemplateResponse(
         request=req, name="register.html", context={"title": "Register"}
     )
+
+@app.get('/account', include_in_schema=False)
+async def account_page(req: Request):
+    return templates.TemplateResponse(
+        request=req, name="account.html", context={"title": "Account"}
+    )
+
+
 
 ## API Endpoints are in routers directory moved to dir. /routers 
 

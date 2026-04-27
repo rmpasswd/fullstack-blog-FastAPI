@@ -16,9 +16,20 @@ from auth.auth import (
     oauth2_scheme,
     verify_access_token,
     verify_password,
+    CurrentUser
 )
+
 from auth.config import settings
 import models
+
+
+# Image imports...
+from fastapi import UploadFile
+from PIL import UnidentifiedImageError
+from starlette.concurrency import run_in_threadpool
+from image_utils import delete_profilepic, process_profile_pic
+# from auth.config import settings
+
 
 router = APIRouter()
 
@@ -60,54 +71,49 @@ async def create_token_from_loginfo(form_data: Annotated[OAuth2PasswordRequestFo
 
 
 @router.get("/me", response_model=UserResponsePrivate)
-async def get_current_loggedin_user(token: Annotated[str,  Depends(oauth2_scheme)], db: Annotated[AsyncSession, Depends(get_db)]):
+# async def get_current_loggedin_user(token: Annotated[str,  Depends(oauth2_scheme)], db: Annotated[AsyncSession, Depends(get_db)]):
+async def get_current_loggedin_user(current_user: CurrentUser):
+    return current_user
 
-    # first decode the jwt token, get the userID
-    userID= verify_access_token(token=token)
-    if userID is None: # means InvalidTokenError error was raised, check the definition
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid/Expired token", headers={"WWW-Authenticate": "Bearer"})
-    
-    try:
-        userID_int =  int(userID)
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid/Expired token", headers={"WWW-Authenticate": "Bearer"})
-    
-    # search in db for the user ID
-    userr = await db.execute(select(models.User).where(func.lower(models.User.id == userID_int)))
-    userr = userr.scalars().first()
-
-    if not userr:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found!", headers={"WWW-Authenticate": "Bearer"})
-
-    return userr
-        
-    
 
 
 @router.patch("/{user_id}", response_model=UserResponsePrivate)
-async def update_partial_user(user_id: int, user_update: UserUpdate, db: Annotated[AsyncSession, Depends(get_db)]):
+async def update_partial_user(user_id: int,  current_user: CurrentUser, user_update: UserUpdate, db: Annotated[AsyncSession, Depends(get_db)]):
 
-    try:    # Assumption: the user_id already exists and wants to change to a new  username "user_update.username".
+    if user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authorized to update user",)
+    
+    # Check if the user exists, unnecessary...
+    userr = await db.execute( select(models.User).where(models.User.id == user_id) )
+    userr = userr.scalars().first()
+    if not userr:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User does not exist?!",)
 
-        existing_user = await db.execute(select(models.User).where(func.lower(models.User.username) == user_update.username.lower()))
-        existing_user = existing_user.scalars().first()
-        if not  existing_user: # is not None
+    # if the user provided a new username and its not a spinoff from existing username!
+    if bool(user_update.username) and user_update.username.lower() != userr.username.lower():  # The db will not query for case changes, e.g. dorimon to dorimoN
+        existing_username = await db.execute(select(models.User).where(func.lower(models.User.username) == user_update.username.lower()))
+        existing_username = existing_username.scalars().first()
+        print(existing_username)
+        if existing_username is not None: # is not None
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="A user with this username already exists")
 
+    # if the user provided a new email and its not a spinoff from existing email!
+    if bool(user_update.email) and user_update.email.lower() != userr.email.lower():
         existing_emaill = await db.execute(select(models.User).where(func.lower(models.User.email) == user_update.email.lower()))
-        emaill = emaill.scalars().first()
-        if emaill: # already exists??
+        existing_emaill = existing_emaill.scalars().first()
+        if existing_emaill: # already exists??
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A user with this email already exists")
 
-        existing_user.username = user_update.username or existing_user.username
-        existing_user.email = user_update.email or existing_user.email
+    print("trynna update user_partial")
 
-        await db.commit();
-        await db.refresh(existing_user)
+    current_user.username = user_update.username or current_user.username
+    current_user.email = user_update.email or current_user.email
 
-        return existing_user
-    except:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    await db.commit();
+    await db.refresh(current_user)
+
+    return current_user
+
 
 
 
@@ -137,15 +143,86 @@ async def get_user(userid: int, db: Annotated[AsyncSession, Depends(get_db)]):
         raise HTTPException( status_code=status.HTTP_404_NOT_FOUND, detail=f"Could not find a user with userid {userid}." )
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
-
+async def delete_user(user_id: int, current_user: CurrentUser, db: Annotated[AsyncSession, Depends(get_db)]):
+    
     userr = await db.execute( select(models.User).where(models.User.id == user_id) )
     userr = userr.scalars().first()
     if not userr:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"The user to delete was not found, user id:{user_id}.")
 
+    image_file = userr.image_file
     await db.delete(userr)
-    await db.commit();  
+    await db.commit()
+
+    if image_file:
+        delete_profilepic(image_file)
 
 
 
+@router.patch("/{user_id}/picture", response_model=UserResponsePrivate)
+async def upload_profile_picture(
+    user_id: int, 
+    file: UploadFile, # this object type is provided by FastAPI
+    current_user:CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    if user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    
+    content = await file.read()
+
+    if len(content) > settings.max_upload_size_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+    
+    # we should not run CPU-heavy task in async manner, it will block the threadpool.
+    # we could choose to run it the usual sync manner but we want the endpoint to by async
+    # solution:  Use thread-pool
+    try:
+        new_filename = await run_in_threadpool(process_profile_pic,content)
+    except UnidentifiedImageError as err: # pillow package detects the content type uploaded by user
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Image file, upload a valid one...") from err
+        # "from err" preserves the original traceback, Python’s traceback will show: "The above exception (UnidentifiedImageError) was the direct cause of the following exception (HTTPException)."
+    
+    #saving the old file, incase DB update dont work
+    old_filename = current_user.image_file
+
+    current_user.image_file = new_filename
+    await db.commit() 
+    #gemini notes:
+    # If you had updated a User, deleted a Post, and created a Comment all in the same route, a single await db.commit() would save all three actions. It doesn't take arguments because its job is to finalize the entire "transaction."
+    # Note: If you wanted to tell the session about a brand new object that isn't in the 'shopping cart' yet, you would use db.add(new_object). But since current_user was already fetched from the DB, it's already being tracked.
+    # 
+    await db.refresh(current_user) # fetch the latest from the DB, making sure its showing the new DB value.
+
+    if old_filename:
+        delete_profilepic(old_filename)
+    
+    return current_user
+
+@router.delete("/{user_id}/picture", response_model=UserResponsePrivate)
+async def delete_user_picture(
+    user_id: int,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this user's picture",
+        )
+
+    old_filename = current_user.image_file
+
+    if old_filename is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No profile picture to delete",
+        )
+
+    current_user.image_file = None
+    await db.commit()
+    await db.refresh(current_user)
+
+    delete_profilepic(old_filename)
+
+    return current_user
