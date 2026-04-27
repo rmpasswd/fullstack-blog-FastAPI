@@ -1,10 +1,15 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-DB_URL_SQLITE = "sqlite+aiosqlite:///./blog.db"
+from auth.config import settings
+# DB_URL_SQLITE = "sqlite+aiosqlite:///./blog.db"
+# engine = create_async_engine(DB_URL_SQLITE, connect_args={"check_same_thread": False},)
 
-engine = create_async_engine(DB_URL_SQLITE, connect_args={"check_same_thread": False},)
+import sys, asyncio
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+engine = create_async_engine(settings.database_url, echo=True)
 
 # SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

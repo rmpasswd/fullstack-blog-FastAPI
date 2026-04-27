@@ -1,4 +1,4 @@
-from __future__ import annotations # forward reference support for versions older than 3.14
+from __future__ import annotations # forward reference support for python versions older than 3.14
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
@@ -27,8 +27,13 @@ class Post(Base):
     __tablename__ = 'posts'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    title: Mapped[str] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     date_posted: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     author: Mapped[User] = relationship(back_populates="posts")
+
+    likes: Mapped[int] = mapped_column(Integer, default=0, server_default="0") 
+            # server_defaults exists because database usually  tries to put null value to a new column of existing table.
+
+
