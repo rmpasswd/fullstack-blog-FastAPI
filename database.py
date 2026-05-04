@@ -9,7 +9,12 @@ import sys, asyncio
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-engine = create_async_engine(settings.database_url, echo=True)
+engine = create_async_engine(
+            settings.database_url, 
+            echo=True,
+            connect_args={"options": "-c search_path=blogdb"} 
+            #  Force alembic to use another schema 'blogdb' instead of schema 'public'. default database 'postgres' stays fixed.
+        )
 
 # SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

@@ -31,7 +31,7 @@ posts: list[dict] = [
 ]
 ```
 
-###  Discussion, Troubleshoot Log...
+###  Discussion, Troubleshoot Notes...
 
 After trying to out sqlite and the async variant of operations, it's time to switch to PostgreSQL.  We will  install 1)postgres itself, 2)the python package, and another 3)packageto migrate from sqlite.
 
@@ -61,3 +61,18 @@ After trying to out sqlite and the async variant of operations, it's time to swi
     - s (split): If a hunk contains both "Image Upload" and "Pagination" code, s will try to break it into even smaller pieces so you can stage them separately.
 
     -  q (quit): Stop right here. Don't stage anything else, but keep what you've already "y-ed" so far.
+
+
+### Deployment and VPS Setup Notes:
+
+- After writing the dockerfile, keep it in project root and run this command from the project root to 1) build the _image_ and 2) run a container from the image: `docker  build  -t fastapi-blog ./ && docker run -p 8080:8080 --env-file ./auth/.env fastapi-blog`
+- Now we can just move this 'image file' to anywhere and spin up our project  in a container, the database will be hosted in Supabase, Neon or whichever, only need to update the Database_url in .env file.
+![docker ss images](./media/image123.png)
+#### Cloud Deployment:
+There are some options for cloud deployment, we can go for the age old Virtual Private Server or 'box in the cloud' option from  Digitalocean(called a 'droplet') or Akamai company(Linode), or AWS(EC2 instance) etc. For learning purpose going with a plain box like Linode is recommended. Going for AWS (and GCP later) because that where I want to specialize.
+
+
+
+jobs@linuxo.ai
+
+

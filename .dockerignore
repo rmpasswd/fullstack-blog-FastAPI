@@ -1,13 +1,10 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
 
-# Virtual environments
-.venv
+.git/
+
+tests/
+utils/
+.python-version
+
 # Created by https://www.toptal.com/developers/gitignore/api/python,macos,visualstudiocode,dotenv
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,macos,visualstudiocode,dotenv
 
@@ -131,10 +128,6 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-
-#vscode stuff
-*.code-workspace
-
 
 # IPython
 profile_default/

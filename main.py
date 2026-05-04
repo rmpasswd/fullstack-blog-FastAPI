@@ -10,7 +10,7 @@ from fastapi.exception_handlers import http_exception_handler, request_validatio
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from typing import Annotated
@@ -124,7 +124,35 @@ async def account_page(req: Request):
     )
 
 
+@app.get('/health')
+async def health_check(db:Annotated[AsyncSession, Depends(get_db)]):
+    try:
+        await db.execute(text("SELECT 1"))
+    except Exception as e:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            # detail="Database no responding..."
+            detail= f"Database not responding: { type (e).__name__} : {e} " ,
+        ) from e
+    return {"status": "healthy"}
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+
+    response = await call_next(request)
+    # letting the req. pass on and before returning it to the client, add these:
+
+    
+    response.headers["X-Frame-Option"] = "SAMEORIGIN"
+    response.headers["X-Content-Type-Option"] = "nosniff"
+
+    if "Referrer-Policy" not in response.headers:
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    if request.url.hostname not in ("localhost", "127.0.0.1"):
+        response.headers["Strict-Transport-Security"] = ("max-age=63072000, includeSubDomains")
+
+    return response
 ## API Endpoints are in routers directory moved to dir. /routers 
 
 

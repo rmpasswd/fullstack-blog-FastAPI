@@ -28,7 +28,8 @@ from fastapi import UploadFile
 from PIL import UnidentifiedImageError
 from starlette.concurrency import run_in_threadpool
 from image_utils import delete_profilepic, process_profile_pic
-# from auth.config import settings
+from auth.config import settings
+from botocore.exceptions import ClientError 
 
 
 router = APIRouter()
@@ -178,11 +179,12 @@ async def upload_profile_picture(
     # we could choose to run it the usual sync manner but we want the endpoint to by async
     # solution:  Use thread-pool
     try:
-        new_filename = await run_in_threadpool(process_profile_pic,content)
+        new_filename, *_ = await run_in_threadpool(process_profile_pic, content)  # processes  image, uploads to s3 and Returns tuple, not just filename. contains blocking code...
     except UnidentifiedImageError as err: # pillow package detects the content type uploaded by user
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Image file, upload a valid one...") from err
         # "from err" preserves the original traceback, Python’s traceback will show: "The above exception (UnidentifiedImageError) was the direct cause of the following exception (HTTPException)."
-    
+    # more error handling inside process_profile_pic function in imageutils...
+
     #saving the old file, incase DB update dont work
     old_filename = current_user.image_file
 
@@ -195,7 +197,7 @@ async def upload_profile_picture(
     await db.refresh(current_user) # fetch the latest from the DB, making sure its showing the new DB value.
 
     if old_filename:
-        delete_profilepic(old_filename)
+        await run_in_threadpool(delete_profilepic,old_filename)
     
     return current_user
 
@@ -223,6 +225,6 @@ async def delete_user_picture(
     await db.commit()
     await db.refresh(current_user)
 
-    delete_profilepic(old_filename)
+    await run_in_threadpool(delete_profilepic, old_filename) # delete from s3 bucket
 
     return current_user

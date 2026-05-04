@@ -80,6 +80,7 @@ async def run_async_migrations() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args={"options": "-c search_path=blogdb,public"} #  Force alembic to use another schema 'blogdb' instead of schema 'public'. default database 'postgres' stays fixed.
     )
 
     async with connectable.connect() as connection:
