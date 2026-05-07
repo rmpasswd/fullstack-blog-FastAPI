@@ -1,4 +1,3 @@
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, status, Depends
 
@@ -55,7 +54,7 @@ async def  home(request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     posts = r.scalars().all()
 
     # print([i for i in posts]) #  Iterators in Python are single-pass i.e. post becomes empty after this. So this line doesn't work
-    
+
     # count total posts
     r = await db.execute(select(func.count()).select_from(models.Post))
     total = r.scalar() or 0
