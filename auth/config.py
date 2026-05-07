@@ -22,3 +22,5 @@ class Settings(BaseSettings):
     posts_per_page: int = 3
 
 settings = Settings()
+
+
