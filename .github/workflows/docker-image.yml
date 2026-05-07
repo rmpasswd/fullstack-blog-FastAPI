@@ -14,9 +14,9 @@ jobs:
     steps:
     - name: Set image_tag
       run:  echo "image_tag=rmpasswd/fastapi-blog:$(date +%Y%m%d)" >> $GITHUB_ENV
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: echo ${{env.image_tag}} && docker build . --tag ${{env.image_tag}} --tag rmpasswd/fastapi-blog:latest
+      run: echo ${{env.image_tag}} && docker build . --tag ${{env.image_tag}} 
       
     - name: use  secret to login to docker hub
       uses: docker/login-action@v4
@@ -29,4 +29,4 @@ jobs:
         push: true
         tags: |
           rmpasswd/fastapi-blog:${{env.image_tag}}
-          rmpasswd/fastapi-blog:latest
+          # rmpasswd/fastapi-blog:latest
