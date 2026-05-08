@@ -28,12 +28,15 @@ A FastAPI CRUD blog project with features:
 
 ### Installation(local)
 
-1. download the main branch
-2. Install postgres
-3. Create an .env file with two variables: DATABASE_URL(`=postgresql+psycopg://bloguser:bloguser@localhost:5432/blog` ) and SECRET_KEY( to form JWT access token, `python -c "import secrets; print(secrets.token_hex(32))"`)
-4. install python3 and uv
-5. while inside project root, run: `uv sync`. It will use the project.toml file.
-6. run `uv run fastapi dev main.py`
+1. Download the main branch
+2. Install postgresql. Inside `psql` client: `CREATE USER user123 WITH PASSWORD'pass123'; CREATE DATABASE blog OWNER user123`
+3. Create an .env file with two variables: DATABASE_URL(`=postgresql+psycopg://user123:pass123@localhost:5432/blog` ) and SECRET_KEY( to form JWT access token, `python -c "import secrets; print(secrets.token_hex(32))"`)
+4. Install python3 and [uv](https://docs.astral.sh/uv/getting-started/installation/#installation-methods)
+5. While inside project root, run: `uv sync`. It will use the project.toml file.
+6. `uv run alembic upgrade head` to actually create the tables, otherwise next command will fail.
+7. Run `uv run fastapi dev main.py`. 
+  - Put the .env file following the path mentioned in auth/config.py
+  - The database tables must be present and open to connecttions from FastAPI
 
 ###  Discussion, Troubleshoot Log...
 
