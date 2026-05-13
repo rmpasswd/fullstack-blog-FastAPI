@@ -1,35 +1,42 @@
-```
-posts: list[dict] = [
-    {
-        "id": 1,
-        "user_id": 1,
-        "author": {
-            "id": 1,
-            "username": "corey_schafer",
-            "email": "corey@example.com",
-            "image_file": "default.jpg",
-            "image_path": "/static/profile_pics/default.jpg"
-        },
-        "title": "FastAPI is Awesome",
-        "content": "This framework is really easy to use and super fast.",
-        "date_posted": "2025-04-20T00:00:00",
-    },
-    {
-        "id": 2,
-        "user_id": 2,
-        "author": {
-            "id": 2,
-            "username": "jane_doe",
-            "email": "jane@example.com",
-            "image_file": "default.jpg",
-            "image_path": "/static/profile_pics/default.jpg"
-        },
-        "title": "Python is Great for Web Development",
-        "content": "Python is a great language for web development, and FastAPI makes it even better.",
-        "date_posted": "2025-04-21T00:00:00",
-    },
-]
-```
+###  About the Project
+
+A FastAPI CRUD blog project with features:
+  - Register, login and change profile pictures(uses AWS S3)
+  - Create new posts, edit and delete(postgres database).
+  - A Home page with All page, user-specific post page.
+  - Supports pagination
+
+**Built With:**  
+
+[![uv](https://img.shields.io/badge/uv-%2324292e.svg?style=for-the-badge&logo=python&logoColor=white)](#)  [![FastAPI](https://img.shields.io/badge/FastAPI-%23009485.svg?style=for-the-badge&logo=fastapi&logoColor=white)](#)  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)](#)  [![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-%23D71F00.svg?style=for-the-badge&logo=sqlalchemy&logoColor=white)](#)  [![Alembic](https://img.shields.io/badge/Alembic-%236BA81E.svg?style=for-the-badge&logo=alembic&logoColor=white)](#)  [![Pydantic](https://img.shields.io/badge/Pydantic-%23E92064.svg?style=for-the-badge&logo=pydantic&logoColor=white)](#)
+
+### Architecture
+
+- At the heart of the architecture are two containers running in an EC2 instance.
+  - WatchTower is a monitoring application "for automating Docker container image updates". On interval, it checks the registry, docker hub in this case, and pulls the image if it has been updated. Then it stops and re-creates the _webapp_ container with the new image i.e. the new code/feature.
+  - blog-webapp runs the code in the 'live' branch  of this repo. `docker run` exposes the uv  port to the host machines's port 80. After allowing traffic through _Security Groups_, it is now  Live at [https://blog.mahin.uk](https://blog.mahin.uk). DNS and SSL is maintained by Cloudflare.
+
+**Workflow:**
+1. On pushing a commit from local development to the 'live' branch, a _Github Action Runner_ is started to build  the new image  and push to Docker Hub registry.
+2. WatchTower  polls the registry and finds that  the current  running container's image hash is different than that of the registry. Pulls the new image and re-creates the webapp container.
+  - The webapp listens to 8080 port and docker forwards traffic from host's port 80 (`docker run ... -p 80:8080 ...`). _AWS Security Group_ allows outside traffic to port 80 and thus access to the webapp.
+3. User profile pictures are stored/updated using _AWS S3 Bucket_ with _Standard Tier_. All other data incl. posts are stored in a remote postgres database(Supabase). Note that the main branch connect to neither S3 nor remote Postgres. It is a locally deploy-able version of the blog-webapp.
+   
+
+<img width="799" height="453" alt="blog-webapp-architecture-2" src="https://github.com/user-attachments/assets/ee8eca94-e323-4e4e-b6d3-5e44a15dc4bb" />
+
+
+### Installation(local)
+
+1. Download the main branch
+2. Install postgresql. Inside `psql` client: `CREATE USER user123 WITH PASSWORD'pass123'; CREATE DATABASE blog OWNER user123`
+3. Create an .env file with two variables: DATABASE_URL(`=postgresql+psycopg://user123:pass123@localhost:5432/blog` ) and SECRET_KEY( to form JWT access token, `python -c "import secrets; print(secrets.token_hex(32))"`)
+4. Install python3 and [uv](https://docs.astral.sh/uv/getting-started/installation/#installation-methods)
+5. While inside project root, run: `uv sync`. It will use the project.toml file.
+6. `uv run alembic upgrade head` to actually create the tables, otherwise next command will fail.
+7. Run `uv run fastapi dev main.py`. 
+  - Put the .env file following the path mentioned in auth/config.py
+  - The database tables must be present and open to connecttions from FastAPI
 
 ###  Discussion, Troubleshoot Log...
 
