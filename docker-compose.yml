@@ -1,0 +1,24 @@
+services:
+  webapp:
+    build: ./ # Uses the already built 'dockerfile' in project root.
+    env_file: ".env"
+    ports:
+      - 8080:8080
+
+  db:
+    container_name: postgres-blog-composed
+    image: postgres:14.22-trixie
+    restart: always
+    ports:
+      - 5432:5432 # host port: container port
+    environment:
+      POSTGRES_DB: "blog"
+      POSTGRES_USER: "bloguser"
+      POSTGRES_PASSWORD: "bloguser"
+
+    volumes:
+      - blogdata-pg:/var/lib/postgresql/data
+
+
+volumes:
+  blogdata-pg:
