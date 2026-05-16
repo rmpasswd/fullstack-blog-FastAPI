@@ -25,5 +25,5 @@ jobs:
         password: ${{secrets.DOCKERHUB_PAT}}
     
     - name: Build and push
-      run:  docker push  rmpasswd/fastapi-blog
+      run:  docker push --all-tags rmpasswd/fastapi-blog
       
