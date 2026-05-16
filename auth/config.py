@@ -15,14 +15,7 @@ class Settings(BaseSettings):
     #  going to  get values from .env file.  Notice in both  files,  the names  are same but DIFFER in case.
     #  the existing value system environment variable  gets higher priority than .env file.
 
-    
-
-    s3_bucket_name: str
-    s3_region: str = "us-east-2"
-    s3_access_key: SecretStr | None = None
-    s3_secret_access_key: SecretStr | None = None
-    # reason why key are optional, if the project is run from within EC2 instance, then key values are not requred, the aws identity running the EC2 will be applied.
-
+ 
 
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30

@@ -19,7 +19,8 @@ from database import engine, get_db
 from routers import users,posts
 from auth.config import settings
 
-
+import  mistune
+from markupsafe import Markup
 # Base.metadata.create_all(bind=engine)  # create_all is a sync function.
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -43,6 +44,9 @@ app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
 
 templates = Jinja2Templates(directory="templates")
 
+markdown_parser = mistune.create_markdown(escape=False)
+templates.env.filters["markdown_mistune"] = markdown_parser
+
 
 @app.get("/", include_in_schema=False, name="home")
 @app.get("/posts", include_in_schema=True, name="posts")
@@ -53,7 +57,6 @@ async def  home(request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
                          .options(selectinload(models.Post.author))
                          .limit(settings.posts_per_page))
     posts = r.scalars().all()
-
     # print([i for i in posts]) #  Iterators in Python are single-pass i.e. post becomes empty after this. So this line doesn't work
     
     # count total posts
@@ -77,6 +80,8 @@ async def post_page(post_id: int, request: Request, db: Annotated[AsyncSession, 
 
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id {post_id} not found")
+
+    post.content = Markup(mistune.html(post.content)) # to convince {{jinja}} to parse HTML tags.
 
     return templates.TemplateResponse( 
         request=request,
@@ -134,7 +139,17 @@ async def health_check(db:Annotated[AsyncSession, Depends(get_db)]):
             # detail="Database no responding..."
             detail= f"Database not responding: { type (e).__name__} : {e} " ,
         ) from e
-    return {"status": "healthy"}
+    try:
+        # Temporary debug lines
+        current_db = await db.scalar(text("SELECT current_database();"))
+        print(f"DEBUG: SQLAlchemy is actually connected to: {current_db}")
+    except Exception as e:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            # detail="Database no responding..."
+            detail= f"And:\n { type (e).__name__} : {e} " ,
+        ) from e    
+    return {"status": "healthy", "connected_Database": current_db}
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):

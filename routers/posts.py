@@ -13,10 +13,11 @@ from sqlalchemy import select, func
 
 import models
 from auth.auth import CurrentUser
-
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
+
+# These are API routes, not HTML
 
 #  prefix="/api/posts"
 
@@ -32,7 +33,6 @@ async def posts_all(
     # count the posts
     r = await db.execute(select(func.count()).select_from(models.Post))
     total = r.scalars().first() or 0
-
     posts = await db.execute(
                     select(models.Post)
                     .options(selectinload(models.Post.author))
@@ -53,10 +53,11 @@ async def posts_all(
 
 @router.get("/{post_id}", response_model=PostResponse)
 async def post_get(post_id: int , db: Annotated[AsyncSession, Depends(get_db)]):
+    print("mistune here:..............")
 
     r  = await db.execute(select(models.Post).options(selectinload(models.Post.author)).where(models.Post.id==post_id))
     if post:= r.scalars().first():
-        return post
+        return post 
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id {post_id} not found")
 
