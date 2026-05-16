@@ -22,7 +22,7 @@
           <h2>
             <a class="article-title" href="{{ url_for('get_post_page', post_id=post.id) }}">{{ post.title }}</a>
           </h2>
-          <p class="article-content">{{ post.content }}</p>
+          <p class="article-content">{{ post.content | markdown_mistune | safe }}</p>
         </div>
       </div>
     </article>
@@ -53,6 +53,7 @@
   const loadMoreBtn = document.getElementById('loadMoreBtn');
 
   // Create HTML for a single post (matching server-rendered structure)
+  // to append to new posts
   function createPostHTML(post) {
     return `
       <article class="content-section py-3 px-4 mb-4">

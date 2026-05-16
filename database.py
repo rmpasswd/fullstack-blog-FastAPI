@@ -12,8 +12,8 @@ if sys.platform == 'win32':
 engine = create_async_engine(
             settings.database_url, 
             echo=True,
-            connect_args={"options": "-c search_path=blogdb"} 
-            #  Force alembic to use another schema 'blogdb' instead of schema 'public'. default database 'postgres' stays fixed.
+            connect_args={"options": "-c search_path=blogdb,public"} 
+            #  Force alembic to use another schema 'blogdb' instead of schema 'public'. default database 'postgres' stays fixed.(supabase note)
         )
 
 # SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
