@@ -93,6 +93,8 @@ After trying to out sqlite and the async variant of operations, it's time to swi
     - Gemini and [stackoverflow](https://stackoverflow.com/questions/71219607/psycopg3-unable-to-connect-async) says to add this line: `asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())` *Does not work*.  Then inserted it to `database.py` where the first asyncio line is executed; not `main.py` which imports objects from `database.py`.
   - After `alembic revision...` command, If you dont see any tables(only 'pass' keyword instead) in alembicDir/revision...py file, then chances are tables were already created by   'create_all' in main.py lifespan block.Comment that 'create_all' block, delete the tables(login with `psql -U bloguser -d blog` and then `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`) and then try the alembic revision command again.
   -  Then to apply the revision: `uv run alembic upgrade head`. head means latest, alembic is indeed git-like. to rollback to previous revision: `uv run   alembic downgrade -1`. More commands: `uv run alembic current|history`
+  -  Troubleshoot: running command `uv run alembic revision --autogenerate -m "new changes to the databae new table/colum"` throws error: `Target database is not up to date` after making changes to models.py file to add another column or table. Then check  whether the latest alembic version is indeed the latest database's version `uv run alembic history --indicate`. If you cannot see both 'head' and 'current' then run `uv run alembic stamp head`. Now continue with `alembic revision --autogenerate... ` and `alembic upgrade head`
+  -  
 
 
  **Git commit issue: Should not push 3 features in 1 commit! commit in chunks with `git add -p`**
