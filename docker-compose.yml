@@ -1,10 +1,4 @@
 services:
-  webapp:
-    build: ./ # Uses the already built 'dockerfile' in project root.
-    env_file: ".env"
-    ports:
-      - 8080:8080
-
   db:
     container_name: postgres-blog-composed
     image: postgres:14.22-trixie
@@ -15,10 +9,19 @@ services:
       POSTGRES_DB: "blog"
       POSTGRES_USER: "bloguser"
       POSTGRES_PASSWORD: "bloguser"
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - blogdata-pg:/var/lib/postgresql/data
-
+  
+  webapp:
+    build: ./ # Uses the already built 'dockerfile' in project root.
+    env_file: ".env"
+    ports:
+      - 8080:8080
 
 volumes:
   blogdata-pg:
